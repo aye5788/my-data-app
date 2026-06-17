@@ -3,21 +3,40 @@ import pandas as pd
 import plotly.express as px
 import google.generativeai as genai # Import for Gemini API
 import os # To potentially read API key from environment
-from data_loader import load_data_file, get_data_profile
+import json # Import for reading JSON config
+from data_loader import load_data_file, get_data_profile, load_from_gcs # Ensure load_from_gcs is imported
 
 st.set_page_config(layout="wide")
 
 st.title("Personal Data Analysis Application")
 
 st.sidebar.header("Select Data Source")
-data_source = st.sidebar.selectbox(
-    "Choose your data source",
-    ("Local Upload", "Google Cloud Storage (GCS)")
-)
+
+# Load data sources from config file
+try:
+    with open("sources_config.json", "r") as f:
+        data_sources_config = json.load(f)
+    source_names = list(data_sources_config.keys())
+except FileNotFoundError:
+    st.error("`sources_config.json` not found. Please create it with data source configurations.")
+    source_names = []
+except json.JSONDecodeError:
+    st.error("Error decoding `sources_config.json`. Please check its format.")
+    source_names = []
+
+if source_names:
+    selected_source_name = st.sidebar.selectbox(
+        "Choose your data source",
+        source_names
+    )
+    selected_source_type = data_sources_config.get(selected_source_name)
+else:
+    selected_source_name = None
+    selected_source_type = None
 
 df = None # Initialize df to None
 
-if data_source == "Local Upload":
+if selected_source_type == "file_upload":
     uploaded_file = st.sidebar.file_uploader(
         "Upload a file",
         type=["csv", "xlsx", "json", "parquet"]
@@ -30,8 +49,22 @@ if data_source == "Local Upload":
                 st.error("Unsupported file type or error loading file. Please upload a CSV, XLSX, JSON, or Parquet file.")
         except Exception as e:
             st.error(f"Error loading or processing file: {e}")
-elif data_source == "Google Cloud Storage (GCS)":
-    st.sidebar.info("GCS integration will be added here.")
+elif selected_source_type == "gcs_bucket":
+    gcs_bucket_path = st.sidebar.text_input(
+        "Enter GCS Bucket Path (e.g., gs://your-bucket/your-file.csv)",
+        key="gcs_path_input"
+    )
+    if gcs_bucket_path:
+        st.sidebar.info(f"Attempting to load data from: `{gcs_bucket_path}`")
+        try:
+            df = load_from_gcs(gcs_bucket_path)
+            if df is None:
+                st.error(f"Could not load data from '{gcs_bucket_path}'. Check path and permissions.")
+        except Exception as e:
+            st.error(f"Error loading from GCS: {e}")
+else: # No source selected or config error
+    if source_names: # If there are options but none selected (e.g., initial load)
+        st.sidebar.info("Please select a data source.")
 
 
 # --- Main application logic when df is loaded ---
