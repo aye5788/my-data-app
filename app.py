@@ -73,13 +73,13 @@ if df is not None:
 
     st.subheader("Interactive Line Chart")
 
-        numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
+    numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
 
-        if len(numerical_cols) >= 1:
-            # For simplicity, plot all numerical columns against the DataFrame index.
-            # Users can customize axis selection if more detailed charting is needed.
-            fig = px.line(df, y=numerical_cols, title="Data Trends Over Index")
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.write("No numerical columns found to create a line chart.")
+    if len(numerical_cols) >= 1:
+        # For simplicity, plot all numerical columns against the DataFrame index.
+        # Users can customize axis selection if more detailed charting is needed.
+        fig = px.line(df, y=numerical_cols, title="Data Trends Over Index")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.write("No numerical columns found to create a line chart.")
 
