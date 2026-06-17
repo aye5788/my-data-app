@@ -48,5 +48,3 @@ if df is not None:
         else:
             st.write("No numerical columns found to create a line chart.")
 
-    # This else block is now implicitly handled by df being None
-    pass
