@@ -4,7 +4,7 @@ import plotly.express as px
 import google.generativeai as genai # Import for Gemini API
 import os # To potentially read API key from environment
 import json # Import for reading JSON config
-from data_loader import load_data_file, get_data_profile, load_from_gcs # Ensure load_from_gcs is imported
+from data_loader import load_data_file, get_data_profile, load_from_gcs, list_gcs_bucket_files
 
 st.set_page_config(layout="wide")
 
@@ -50,21 +50,46 @@ if selected_source_type == "file_upload":
         except Exception as e:
             st.error(f"Error loading or processing file: {e}")
 elif selected_source_type == "gcs_bucket":
-    gcs_bucket_path = st.sidebar.text_input(
-        "Enter GCS Bucket Path (e.g., gs://your-bucket/your-file.csv)",
-        key="gcs_path_input"
+    gcs_bucket_name = st.sidebar.text_input(
+        "Enter GCS Bucket Name (e.g., your-bucket-name)",
+        key="gcs_bucket_name_input"
     )
-    if gcs_bucket_path:
-        st.sidebar.info(f"Attempting to load data from: `{gcs_bucket_path}`")
-        try:
-            df = load_from_gcs(gcs_bucket_path)
-            if df is None:
-                st.error(f"Could not load data from '{gcs_bucket_path}'. Check path and permissions.")
-        except Exception as e:
-            st.error(f"Error loading from GCS: {e}")
+
+    if gcs_bucket_name:
+        # List files in the specified bucket
+        bucket_files = list_gcs_bucket_files(gcs_bucket_name)
+
+        if bucket_files:
+            # Create a dictionary to map display names (basename) back to full GCS paths
+            file_paths_map = {os.path.basename(f): f for f in bucket_files}
+            display_file_names = sorted(list(file_paths_map.keys())) # Sort for better UI
+            
+            selected_file_display_name = st.sidebar.selectbox(
+                "Select a file from the bucket",
+                options=[""] + display_file_names, # Add an empty option
+                key="gcs_file_selector"
+            )
+
+            if selected_file_display_name:
+                # Retrieve the full GCS path using the map
+                selected_gcs_file_path = file_paths_map[selected_file_display_name]
+                
+                st.sidebar.info(f"Attempting to load data from: `{selected_gcs_file_path}`")
+                try:
+                    df = load_from_gcs(selected_gcs_file_path)
+                    if df is None:
+                        st.error(f"Could not load data from '{selected_gcs_file_path}'. Check path and permissions.")
+                except Exception as e:
+                    st.error(f"Error loading from GCS: {e}")
+            else:
+                st.sidebar.info("Please select a file from the bucket.")
+        else:
+            st.sidebar.warning(f"No files found in bucket '{gcs_bucket_name}' or an error occurred. Ensure the bucket name is correct and you have read permissions.")
+    else:
+        st.sidebar.info("Please enter a GCS bucket name to list files.")
 else: # No source selected or config error
     if source_names: # If there are options but none selected (e.g., initial load)
-        st.sidebar.info("Please select a data source.")
+        st.sidebar.info("Please select a data source or configure `sources_config.json`.") # Added a hint for config
 
 
 # --- Main application logic when df is loaded ---

@@ -35,6 +35,38 @@ def load_data_file(file_object, file_name):
         print(f"Error loading file of type {file_extension}: {e}")
         return None
 
+@st.cache_data
+def list_gcs_bucket_files(bucket_name):
+    """
+    Lists files (and folders) in a specified Google Cloud Storage bucket.
+
+    Args:
+        bucket_name (str): The name of the GCS bucket (e.g., "my-bucket").
+
+    Returns:
+        list: A list of full GCS file paths (e.g., "gs://my-bucket/folder/file.csv")
+              or an empty list if an error occurs or no files are found.
+    """
+    if not bucket_name:
+        return []
+
+    try:
+        conn = st.connection('gcs', type=FilesConnection)
+        # fs.ls returns a list of dictionaries with 'name', 'type', 'size'
+        # 'name' here is the path relative to the bucket root (e.g., 'file.csv' or 'folder/file.csv')
+        files_info = conn.fs.ls(f"gs://{bucket_name}/", detail=True)
+        
+        # Construct full GCS paths for files only
+        file_paths = []
+        for item in files_info:
+            if item['type'] == 'file':
+                file_paths.append(f"gs://{bucket_name}/{item['name']}")
+        return file_paths
+    except Exception as e:
+        st.error(f"Error listing files in GCS bucket '{bucket_name}': {e}")
+        return []
+
+
 def get_data_profile(df):
     """
     Calculates summary metrics for a Pandas DataFrame.
