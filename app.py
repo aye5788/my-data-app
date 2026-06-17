@@ -1,19 +1,40 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from data_loader import load_data_file
 
 st.set_page_config(layout="wide")
 
 st.title("Personal Data Analysis Application")
 
-st.sidebar.header("Upload your Data")
-uploaded_file = st.sidebar.file_uploader("Upload a CSV file", type=["csv"])
+st.sidebar.header("Select Data Source")
+data_source = st.sidebar.selectbox(
+    "Choose your data source",
+    ("Local Upload", "Google Cloud Storage (GCS)")
+)
 
-if uploaded_file is not None:
-    try:
-        df = pd.read_csv(uploaded_file)
-        st.subheader("Raw Data Table")
-        st.dataframe(df)
+df = None # Initialize df to None
+
+if data_source == "Local Upload":
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload a file",
+        type=["csv", "xlsx", "json", "parquet"]
+    )
+
+    if uploaded_file is not None:
+        try:
+            df = load_data_file(uploaded_file, uploaded_file.name)
+            if df is not None:
+                st.subheader("Raw Data Table")
+                st.dataframe(df)
+            else:
+                st.error("Unsupported file type or error loading file. Please upload a CSV, XLSX, JSON, or Parquet file.")
+        except Exception as e:
+            st.error(f"Error loading or processing file: {e}")
+elif data_source == "Google Cloud Storage (GCS)":
+    st.sidebar.info("GCS integration will be added here.")
+
+if df is not None:
 
         st.subheader("Interactive Line Chart")
 
@@ -27,7 +48,5 @@ if uploaded_file is not None:
         else:
             st.write("No numerical columns found to create a line chart.")
 
-    except Exception as e:
-        st.error(f"Error loading or processing file: {e}")
-else:
-    st.info("Please upload a CSV file to begin analysis.")
+    # This else block is now implicitly handled by df being None
+    pass
