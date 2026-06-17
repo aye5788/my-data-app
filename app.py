@@ -121,17 +121,41 @@ if df is not None:
             st.info("No missing values found!")
     st.markdown("---")
 
-    # Interactive Line Chart Section
-    st.subheader("Interactive Line Chart (Filtered)") # Update subheader
-    numerical_cols = filtered_df.select_dtypes(include=['number']).columns.tolist() # Use filtered_df
+    # --- Visualization Studio Section ---
+    st.markdown("---")
+    st.subheader("Visualization Studio")
 
-    if len(numerical_cols) >= 1:
-        # For simplicity, plot all numerical columns against the DataFrame index.
-        # Users can customize axis selection if more detailed charting is needed.
-        fig = px.line(filtered_df, y=numerical_cols, title="Data Trends Over Index") # Use filtered_df
-        st.plotly_chart(fig, use_container_width=True)
+    all_columns = filtered_df.columns.tolist()
+
+    if not all_columns:
+        st.info("Upload data to see visualization options.")
     else:
-        st.write("No numerical columns found to create a line chart.")
+        col_x, col_y = st.columns(2)
+        with col_x:
+            x_axis = st.selectbox("Select X-Axis", options=all_columns, index=0 if all_columns else None)
+        with col_y:
+            y_axis = st.selectbox("Select Y-Axis", options=all_columns, index=1 if len(all_columns) > 1 else (0 if all_columns else None))
+
+        chart_type = st.selectbox(
+            "Select Chart Type",
+            options=["Line", "Bar", "Scatter"],
+            index=0
+        )
+
+        if x_axis and y_axis:
+            try:
+                if chart_type == "Line":
+                    fig = px.line(filtered_df, x=x_axis, y=y_axis, title=f"{y_axis} vs {x_axis} (Line Chart)")
+                elif chart_type == "Bar":
+                    fig = px.bar(filtered_df, x=x_axis, y=y_axis, title=f"{y_axis} vs {x_axis} (Bar Chart)")
+                elif chart_type == "Scatter":
+                    fig = px.scatter(filtered_df, x=x_axis, y=y_axis, title=f"{y_axis} vs {x_axis} (Scatter Plot)")
+
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as chart_e:
+                st.error(f"Error creating chart: {chart_e}. Please check your axis selections and data types.")
+        else:
+            st.info("Please select both X and Y axes to generate a chart.")
 
     # --- AI Data Assistant Section ---
     st.markdown("---")
