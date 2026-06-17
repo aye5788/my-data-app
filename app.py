@@ -60,25 +60,26 @@ elif selected_source_type == "gcs_bucket":
         )
 
         if selected_bucket_name:
-            # List files in the specified bucket
             bucket_files = list_gcs_bucket_files(selected_bucket_name)
 
+            st.subheader(f"Bucket File Explorer: `{selected_bucket_name}`")
             if bucket_files:
                 # Create a dictionary to map display names (basename) back to full GCS paths
                 file_paths_map = {os.path.basename(f): f for f in bucket_files}
                 display_file_names = sorted(list(file_paths_map.keys())) # Sort for better UI
                 
-                selected_file_display_name = st.sidebar.selectbox(
-                    "Select a file from the bucket",
-                    options=[""] + display_file_names, # Add an empty option
-                    key="gcs_file_selector"
+                selected_file_display_name = st.radio(
+                    "Select a file from the bucket to load",
+                    options=display_file_names,
+                    index=0 if display_file_names else None, # Default to the first file if available
+                    key="gcs_file_radio_selector"
                 )
 
                 if selected_file_display_name:
                     # Retrieve the full GCS path using the map
                     selected_gcs_file_path = file_paths_map[selected_file_display_name]
                     
-                    st.sidebar.info(f"Attempting to load data from: `{selected_gcs_file_path}`")
+                    st.info(f"Attempting to load data from: `{selected_gcs_file_path}`")
                     try:
                         df = load_from_gcs(selected_gcs_file_path)
                         if df is None:
@@ -86,9 +87,9 @@ elif selected_source_type == "gcs_bucket":
                     except Exception as e:
                         st.error(f"Error loading from GCS: {e}")
                 else:
-                    st.sidebar.info("Please select a file from the bucket.")
+                    st.info("Please select a file from the bucket explorer.")
             else:
-                st.sidebar.warning(f"No files found in bucket '{selected_bucket_name}' or an error occurred. Ensure you have read permissions.")
+                st.warning(f"No files found in bucket '{selected_bucket_name}' or an error occurred. Ensure you have read permissions.")
         else:
             st.sidebar.info("Please select a GCS bucket.")
     else:
