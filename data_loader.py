@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import streamlit as st
 from st_files_connection import FilesConnection
+from google.cloud import storage # Import storage for GCS bucket listing
 
 @st.cache_data
 def load_data_file(file_object, file_name):
@@ -34,6 +35,22 @@ def load_data_file(file_object, file_name):
         # For a user-friendly message, we'll let the caller handle the display.
         print(f"Error loading file of type {file_extension}: {e}")
         return None
+
+@st.cache_data
+def list_all_gcs_buckets():
+    """
+    Lists all Google Cloud Storage bucket names accessible by the service account.
+
+    Returns:
+        list: A list of bucket names (strings) or an empty list if an error occurs.
+    """
+    try:
+        client = storage.Client()
+        buckets = client.list_buckets()
+        return [bucket.name for bucket in buckets]
+    except Exception as e:
+        st.error(f"Error listing all GCS buckets: {e}. Check permissions and authentication.")
+        return []
 
 @st.cache_data
 def list_gcs_bucket_files(bucket_name):
