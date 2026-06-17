@@ -3,6 +3,7 @@ import os
 import streamlit as st
 from st_files_connection import FilesConnection
 
+@st.cache_data
 def load_data_file(file_object, file_name):
     """
     Loads data from a file object into a Pandas DataFrame based on file extension.
