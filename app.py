@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from data_loader import load_data_file
+from data_loader import load_data_file, get_data_profile
 
 st.set_page_config(layout="wide")
 
@@ -34,9 +34,44 @@ if data_source == "Local Upload":
 elif data_source == "Google Cloud Storage (GCS)":
     st.sidebar.info("GCS integration will be added here.")
 
-if df is not None:
 
-        st.subheader("Interactive Line Chart")
+# Data Health Check
+if df is not None:
+    st.markdown("---")
+    show_health_check = st.checkbox("Show Data Health Check")
+
+    if show_health_check:
+        profile = get_data_profile(df)
+
+        st.subheader("Data Health Check")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Rows", profile["total_rows"])
+        with col2:
+            st.metric("Total Columns", profile["total_columns"])
+        with col3:
+            st.metric("Duplicate Rows", profile["duplicate_rows"])
+
+        if profile["missing_values_percentage"]:
+            st.markdown("##### Missing Values Per Column:")
+            missing_cols = list(profile["missing_values_percentage"].keys())
+            missing_vals = list(profile["missing_values_percentage"].values())
+
+            # Display missing values in a structured way (e.g., table or more columns)
+            # Using columns for a few, or a dataframe for many
+            if len(missing_cols) <= 4:
+                cols_missing = st.columns(len(missing_cols))
+                for i, col_name in enumerate(missing_cols):
+                    with cols_missing[i]:
+                        st.metric(col_name, missing_vals[i])
+            else:
+                st.dataframe(pd.DataFrame({"Column": missing_cols, "Missing %": missing_vals}))
+        else:
+            st.info("No missing values found!")
+    st.markdown("---")
+
+
+    st.subheader("Interactive Line Chart")
 
         numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
 

@@ -34,6 +34,36 @@ def load_data_file(file_object, file_name):
         print(f"Error loading file of type {file_extension}: {e}")
         return None
 
+def get_data_profile(df):
+    """
+    Calculates summary metrics for a Pandas DataFrame.
+
+    Args:
+        df (pandas.DataFrame): The input DataFrame.
+
+    Returns:
+        dict: A dictionary containing data profile metrics.
+    """
+    if df is None or df.empty:
+        return {
+            "total_rows": 0,
+            "total_columns": 0,
+            "duplicate_rows": 0,
+            "missing_values_percentage": {}
+        }
+
+    total_rows = df.shape[0]
+    total_columns = df.shape[1]
+    duplicate_rows = df.duplicated().sum()
+    missing_values_percentage = (df.isnull().sum() / total_rows * 100).to_dict()
+
+    return {
+        "total_rows": total_rows,
+        "total_columns": total_columns,
+        "duplicate_rows": duplicate_rows,
+        "missing_values_percentage": {col: f"{val:.2f}%" for col, val in missing_values_percentage.items() if val > 0}
+    }
+
 def load_from_gcs(bucket_path):
     """
     Loads data from a Google Cloud Storage bucket path into a Pandas DataFrame.
