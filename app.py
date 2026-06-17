@@ -77,6 +77,19 @@ if df is not None:
     st.subheader("Raw Data Table (Filtered)")
     st.dataframe(filtered_df)
 
+    # --- Export Workspace Section ---
+    st.markdown("---")
+    st.subheader("Export Workspace")
+    
+    # Convert DataFrame to CSV
+    csv_export = filtered_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="Download Filtered Data as CSV",
+        data=csv_export,
+        file_name='cleansed_data_export.csv',
+        mime='text/csv',
+    )
+
     # Data Health Check Section
     st.markdown("---")
     show_health_check = st.checkbox("Show Data Health Check")
