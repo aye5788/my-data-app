@@ -37,6 +37,60 @@ elif data_source == "Google Cloud Storage (GCS)":
 # --- Main application logic when df is loaded ---
 filtered_df = None
 if df is not None:
+    # --- Modify Column Data Types Section ---
+    st.markdown("---")
+    with st.expander("Modify Column Data Types"):
+        st.write("Review and adjust data types for columns if needed. Changes here will affect filtering and visualizations.")
+
+        for col in df.columns:
+            current_type = str(df[col].dtype)
+            
+            # Options for type conversion
+            options = ["No Change", "Text", "Integer", "Float", "Datetime"]
+            
+            # Determine default selection based on current type
+            default_index = 0 # Default to "No Change"
+            if pd.api.types.is_integer_dtype(df[col]):
+                default_index = options.index("Integer")
+            elif pd.api.types.is_float_dtype(df[col]):
+                default_index = options.index("Float")
+            elif pd.api.types.is_datetime64_any_dtype(df[col]):
+                default_index = options.index("Datetime")
+            elif pd.api.types.is_object_dtype(df[col]):
+                # Heuristic: try to infer type for object columns
+                inferred_dtype = pd.api.types.infer_dtype(df[col])
+                if inferred_dtype == 'integer':
+                    default_index = options.index("Integer")
+                elif inferred_dtype == 'floating':
+                    default_index = options.index("Float")
+                elif inferred_dtype == 'datetime64':
+                    default_index = options.index("Datetime")
+                else: # Fallback to text for other objects (strings, mixed, etc.)
+                    default_index = options.index("Text")
+
+            selected_type = st.selectbox(
+                f"Column '{col}' (Current: {current_type})",
+                options=options,
+                index=default_index,
+                key=f"type_select_{col}" # Unique key for each selectbox
+            )
+
+            if selected_type != "No Change":
+                try:
+                    if selected_type == "Text":
+                        df[col] = df[col].astype(str)
+                    elif selected_type == "Integer":
+                        # Convert to float first to handle NaNs, then to Int64 (pandas nullable integer type)
+                        df[col] = pd.to_numeric(df[col], errors='coerce').astype(pd.Int64Dtype())
+                    elif selected_type == "Float":
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                    elif selected_type == "Datetime":
+                        df[col] = pd.to_datetime(df[col], errors='coerce')
+                    st.success(f"Column '{col}' converted to {selected_type}. New type: {df[col].dtype}")
+                except Exception as type_e:
+                    st.error(f"Could not convert column '{col}' to {selected_type}: {type_e}. Data might contain incompatible values. Consider cleaning data first.")
+    st.markdown("---") # Separator after the expander
+
     filtered_df = df.copy() # Start with a copy of the original data
 
     st.sidebar.header("Filter Workspace")
