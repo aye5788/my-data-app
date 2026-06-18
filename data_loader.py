@@ -45,7 +45,15 @@ def list_all_gcs_buckets():
         list: A list of bucket names (strings) or an empty list if an error occurs.
     """
     try:
-        client = storage.Client()
+        # On Streamlit Community Cloud there is no key file on disk, so build the
+        # client from the service-account stored in st.secrets["connections"]["gcs"].
+        # Locally / on a VM, fall back to Application Default Credentials.
+        if "connections" in st.secrets and "gcs" in st.secrets["connections"]:
+            client = storage.Client.from_service_account_info(
+                dict(st.secrets["connections"]["gcs"])
+            )
+        else:
+            client = storage.Client()
         buckets = client.list_buckets()
         return [bucket.name for bucket in buckets]
     except Exception as e:
