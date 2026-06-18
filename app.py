@@ -13,6 +13,7 @@ from transform.normalize import render_normalizer
 from transform.filters import render_filters, render_table, render_export
 from quality.profiling import render_health_check
 from analytics.stats import render_returns_panel
+from analytics.indicators import render_indicators
 from viz.charts import render_visualization
 from ai.deepseek import render_ai_workspace
 
@@ -30,6 +31,7 @@ with data_studio_tab:
     if df is not None:
         df = render_type_editor(df)            # may recast column dtypes
         df = render_normalizer(df)             # opt-in time-series/price standardization
+        df = render_indicators(df)             # opt-in technical indicators (computed on full series)
         filtered_df = render_filters(df)        # sidebar filters -> filtered view
         filtered_df = render_table(filtered_df)  # editable, formatted table -> edits flow on
 
