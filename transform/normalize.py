@@ -34,6 +34,23 @@ def detect_datetime_col(df):
     return None
 
 
+def time_axis(df):
+    """Locate the time axis of ``df``.
+
+    Returns ``("index", None)`` if the index is a DatetimeIndex,
+    ``("column", name)`` if a datetime column is found, else ``(None, None)``.
+    """
+    if isinstance(df.index, pd.DatetimeIndex):
+        return "index", None
+    for c in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df[c]):
+            return "column", c
+    detected = detect_datetime_col(df)
+    if detected is not None:
+        return "column", detected
+    return None, None
+
+
 def suggest_mapping(df):
     """Map canonical OHLCV names -> source columns found in ``df``."""
     lowered = {str(c).strip().lower(): c for c in df.columns}
