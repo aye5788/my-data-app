@@ -47,6 +47,11 @@ def _render_price_chart(df, chart_type):
         )
     fig.add_trace(price_trace, row=1, col=1)
 
+    # Overlay any price-scale indicator columns (sma_/ema_/bb_) as lines.
+    overlay_cols = [c for c in df.columns if str(c).startswith(("sma_", "ema_", "bb_"))]
+    for c in overlay_cols:
+        fig.add_trace(go.Scatter(x=x, y=df[c], name=c, mode="lines"), row=1, col=1)
+
     if has_volume:
         fig.add_trace(go.Bar(x=x, y=df["volume"], name="Volume", marker_color="#888"), row=2, col=1)
         fig.update_yaxes(title_text="Volume", row=2, col=1)
