@@ -7,3 +7,8 @@ st-files-connection==0.1.0
 gcsfs==2026.5.0
 pyarrow==24.0.0
 openpyxl==3.1.5
+SQLAlchemy==2.0.51
+psycopg2-binary==2.9.12
+PyMySQL==1.2.0
+duckdb==1.5.4
+duckdb-engine==0.17.0
