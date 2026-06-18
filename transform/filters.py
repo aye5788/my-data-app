@@ -3,13 +3,50 @@ import pandas as pd
 import streamlit as st
 
 
+def _date_range_filter(label, series, filtered_df, mask_target, key):
+    """Render a from/to date picker; return a boolean mask over ``mask_target``."""
+    valid = series.dropna()
+    if valid.empty:
+        return None
+    lo, hi = valid.min(), valid.max()
+    chosen = st.sidebar.date_input(
+        f"Filter {label}",
+        value=(lo.date(), hi.date()),
+        min_value=lo.date(),
+        max_value=hi.date(),
+        key=key,
+    )
+    if not (isinstance(chosen, (tuple, list)) and len(chosen) == 2):
+        return None
+    start = pd.Timestamp(chosen[0])
+    # include the whole end day
+    end = pd.Timestamp(chosen[1]) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+    return (mask_target >= start) & (mask_target <= end)
+
+
 def render_filters(df):
     """Render sidebar filter controls and return the filtered DataFrame."""
     filtered_df = df.copy()
 
     st.sidebar.header("Filter Workspace")
+
+    # Datetime index gets its own date-range filter (e.g. after normalization).
+    if isinstance(df.index, pd.DatetimeIndex):
+        mask = _date_range_filter(
+            "date (index)", df.index.to_series(), filtered_df,
+            filtered_df.index.to_series(), key="date_filter_index",
+        )
+        if mask is not None:
+            filtered_df = filtered_df[mask.values]
+
     for col in df.columns:
-        if pd.api.types.is_numeric_dtype(df[col]):
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            mask = _date_range_filter(
+                col, df[col], filtered_df, filtered_df[col], key=f"date_filter_{col}"
+            )
+            if mask is not None:
+                filtered_df = filtered_df[mask]
+        elif pd.api.types.is_numeric_dtype(df[col]):
             min_val = float(df[col].min())
             max_val = float(df[col].max())
 
@@ -40,6 +77,33 @@ def render_filters(df):
                 filtered_df = filtered_df[filtered_df[col].astype(str).isin(selected_values)]
 
     return filtered_df
+
+
+def _column_config(df):
+    """Build st.column_config for nicer number/date formatting."""
+    cfg = {}
+    try:
+        for col in df.columns:
+            if pd.api.types.is_float_dtype(df[col]):
+                cfg[col] = st.column_config.NumberColumn(format="%.2f")
+            elif pd.api.types.is_datetime64_any_dtype(df[col]):
+                cfg[col] = st.column_config.DatetimeColumn(format="YYYY-MM-DD")
+    except Exception:
+        pass
+    return cfg
+
+
+def render_table(filtered_df):
+    """Render the filtered data as an editable, formatted table; return edits."""
+    st.subheader("Data Table (Filtered & Editable)")
+    edited = st.data_editor(
+        filtered_df,
+        use_container_width=True,
+        num_rows="dynamic",
+        column_config=_column_config(filtered_df),
+        key="data_editor",
+    )
+    return edited
 
 
 def render_export(filtered_df):
