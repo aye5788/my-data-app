@@ -1,0 +1,18 @@
+# Secrets & credentials
+.env
+gcs_key.json
+.streamlit/secrets.toml
+**/secrets.toml
+
+# Aider
+.aider*
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Logs & runtime
+nohup.out
+*.log
