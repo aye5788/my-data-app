@@ -12,3 +12,4 @@ psycopg2-binary==2.9.12
 PyMySQL==1.2.0
 duckdb==1.5.4
 duckdb-engine==0.17.0
+requests==2.34.2

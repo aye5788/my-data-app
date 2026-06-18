@@ -6,12 +6,13 @@ write a module with that contract and register it below.
 """
 import streamlit as st
 
-from . import upload, sql, gcs
+from . import upload, sql, rest, gcs
 
 # Display name -> connector module. Order here drives the selectbox order.
 REGISTRY = {
     upload.NAME: upload,
     sql.NAME: sql,
+    rest.NAME: rest,
     gcs.NAME: gcs,
 }
 
