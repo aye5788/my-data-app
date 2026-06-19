@@ -82,16 +82,13 @@ def _parse_windows(text, fallback):
 
 def render_indicators(df):
     """Render the opt-in indicators step; return ``df`` with chosen columns added."""
-    st.markdown("---")
     with st.expander("Technical Indicators"):
         if not st.checkbox("Add technical indicators", value=False, key="ind_enabled"):
-            st.markdown("---")
             return df
 
         numeric_cols = df.select_dtypes("number").columns.tolist()
         if not numeric_cols:
             st.info("No numeric price column found. Run the normalizer first.")
-            st.markdown("---")
             return df
 
         default_price = _pick_price_column(df, numeric_cols)
@@ -132,14 +129,12 @@ def render_indicators(df):
             w = st.number_input("RSI window", min_value=2, value=14, step=1, key="ind_rsi_w")
             out[f"rsi_{int(w)}"] = rsi(price, int(w))
         if "Bollinger Bands" in chosen:
-            c1, c2 = st.columns(2)
-            w = c1.number_input("Bollinger window", min_value=2, value=20, step=1, key="ind_bb_w")
-            k = c2.number_input("Std multiplier (k)", min_value=0.5, value=2.0, step=0.5, key="ind_bb_k")
+            w = st.number_input("Bollinger window", min_value=2, value=20, step=1, key="ind_bb_w")
+            k = st.number_input("Std multiplier (k)", min_value=0.5, value=2.0, step=0.5, key="ind_bb_k")
             mid, up, lo = bollinger(price, int(w), float(k))
             out[f"bb_mid_{int(w)}"], out[f"bb_upper_{int(w)}"], out[f"bb_lower_{int(w)}"] = mid, up, lo
 
         added = [c for c in out.columns if c not in df.columns]
         if added:
             st.success(f"Added: {', '.join(added)}")
-        st.markdown("---")
         return out

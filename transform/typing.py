@@ -5,7 +5,6 @@ import streamlit as st
 
 def render_type_editor(df):
     """Render the 'Modify Column Data Types' expander; return the (mutated) df."""
-    st.markdown("---")
     with st.expander("Modify Column Data Types"):
         st.write(
             "Review and adjust data types for columns if needed. "
@@ -57,5 +56,4 @@ def render_type_editor(df):
                         f"Could not convert column '{col}' to {selected_type}: {type_e}. "
                         "Data might contain incompatible values. Consider cleaning data first."
                     )
-    st.markdown("---")
     return df

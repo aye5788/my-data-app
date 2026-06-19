@@ -2,6 +2,10 @@
 import pandas as pd
 import streamlit as st
 
+# Above this many distinct values, a categorical column gets a substring
+# "contains" filter instead of an unwieldy multiselect of every value.
+MAX_CATEGORICAL_OPTIONS = 50
+
 
 def _date_range_filter(label, series, filtered_df, mask_target, key):
     """Render a from/to date picker; return a boolean mask over ``mask_target``."""
@@ -65,16 +69,28 @@ def render_filters(df):
                 (filtered_df[col] >= current_min) & (filtered_df[col] <= current_max)
             ]
         elif df[col].dtype == "object" or pd.api.types.is_categorical_dtype(df[col]):
-            unique_values = df[col].astype(str).unique().tolist()
-            unique_values.sort()
-            selected_values = st.sidebar.multiselect(
-                f"Filter {col}",
-                options=unique_values,
-                default=unique_values,
-                key=f"multiselect_{col}",
-            )
-            if selected_values:
-                filtered_df = filtered_df[filtered_df[col].astype(str).isin(selected_values)]
+            unique_values = sorted(df[col].astype(str).unique().tolist())
+            # A multiselect of hundreds of values is a wall of noise. Above a
+            # threshold, offer a substring "contains" filter instead.
+            if len(unique_values) > MAX_CATEGORICAL_OPTIONS:
+                term = st.sidebar.text_input(
+                    f"Filter {col} (contains)",
+                    key=f"contains_{col}",
+                    help=f"{len(unique_values)} unique values — type to match a substring.",
+                ).strip()
+                if term:
+                    filtered_df = filtered_df[
+                        filtered_df[col].astype(str).str.contains(term, case=False, na=False)
+                    ]
+            else:
+                selected_values = st.sidebar.multiselect(
+                    f"Filter {col}",
+                    options=unique_values,
+                    default=unique_values,
+                    key=f"multiselect_{col}",
+                )
+                if selected_values:
+                    filtered_df = filtered_df[filtered_df[col].astype(str).isin(selected_values)]
 
     return filtered_df
 
