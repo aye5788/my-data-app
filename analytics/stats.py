@@ -32,7 +32,13 @@ def compute_stats(prices, dates=None) -> dict:
     frequency-aware annualization. Returns a dict of metrics (values may be NaN
     when there isn't enough data).
     """
-    prices = pd.Series(prices, dtype="float64").dropna().reset_index(drop=True)
+    prices = pd.Series(prices, dtype="float64")
+    # Order oldest→newest so returns/drawdown are correct even when the source
+    # is newest-first (common in price exports).
+    if dates is not None and len(dates) == len(prices):
+        order = pd.to_datetime(pd.Series(dates).reset_index(drop=True), errors="coerce").argsort()
+        prices = prices.reset_index(drop=True).iloc[order.values]
+    prices = prices.dropna().reset_index(drop=True)
     if len(prices) < 2:
         return {}
 
