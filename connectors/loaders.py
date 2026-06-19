@@ -17,7 +17,14 @@ def load_data_file(file_object, file_name):
 
     try:
         if file_extension == ".csv":
-            return pd.read_csv(file_object)
+            df = pd.read_csv(file_object)
+            # When a CSV header has fewer names than the rows have fields,
+            # pandas promotes the leading column(s) into the (Multi)Index —
+            # common in price exports where the date/ticker column is unlabeled.
+            # Pull them back into real columns so the rest of the app sees them.
+            if not isinstance(df.index, pd.RangeIndex):
+                df = df.reset_index()
+            return df
         elif file_extension == ".xlsx":
             return pd.read_excel(file_object)
         elif file_extension == ".json":
