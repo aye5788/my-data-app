@@ -96,6 +96,11 @@ def _column_config(df):
 def render_table(filtered_df):
     """Render the filtered data as an editable, formatted table; return edits."""
     st.subheader("Data Table (Filtered & Editable)")
+    # st.data_editor can't render a MultiIndex; flatten it into columns so the
+    # data stays visible/editable and flows downstream intact.
+    if isinstance(filtered_df.index, pd.MultiIndex):
+        filtered_df = filtered_df.reset_index()
+        st.caption("Note: a multi-level index was flattened into columns for editing.")
     edited = st.data_editor(
         filtered_df,
         use_container_width=True,
