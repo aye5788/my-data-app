@@ -1,4 +1,5 @@
 """Visualization studio (generic charts + price charts)."""
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
@@ -18,6 +19,21 @@ def _time_values(df):
     if kind == "column":
         return df[name], name
     return None, None
+
+
+def _sort_by_time(df):
+    """Return ``df`` ordered oldest→newest by its time axis (charts expect this).
+
+    Many price exports are newest-first; an unsorted x-axis renders as broken
+    line/candle segments. Sorting a copy leaves the source table untouched.
+    """
+    kind, name = time_axis(df)
+    if kind == "index":
+        return df.sort_index()
+    if kind == "column":
+        key = pd.to_datetime(df[name], errors="coerce")
+        return df.assign(_sort_key=key).sort_values("_sort_key").drop(columns="_sort_key")
+    return df
 
 
 def _render_price_chart(df, chart_type):
@@ -114,11 +130,17 @@ def _render_xy_chart(df, chart_type):
         )
 
 
+# Above this many rows, candlesticks become an unreadable smear — default to a
+# line instead (the user can still pick Candlestick explicitly).
+CANDLE_DENSITY_LIMIT = 1500
+
+
 def _default_chart_type(df):
-    """Candlestick when this looks like OHLC price data on a time axis, else Line."""
+    """Candlestick for daily-ish OHLC price data, Line for dense/intraday or
+    non-price data."""
     kind, _ = time_axis(df)
     if kind is not None and all(c in df.columns for c in OHLC):
-        return "Candlestick"
+        return "Candlestick" if len(df) <= CANDLE_DENSITY_LIMIT else "Line"
     return "Line"
 
 
@@ -134,7 +156,8 @@ def render_visualization(df):
         "Chart type", options=types, index=types.index(default), key="primary_chart_type"
     )
 
+    plot_df = _sort_by_time(df)   # charts read left→right oldest→newest
     if chart_type in ("Candlestick", "OHLC"):
-        _render_price_chart(df, chart_type)
+        _render_price_chart(plot_df, chart_type)
     else:
-        _render_xy_chart(df, chart_type)
+        _render_xy_chart(plot_df, chart_type)
