@@ -34,14 +34,7 @@ def get_data_profile(df):
 
 
 def render_health_check(df):
-    """Render the optional 'Data Health Check' section for ``df``."""
-    st.markdown("---")
-    show_health_check = st.checkbox("Show Data Health Check")
-
-    if not show_health_check:
-        st.markdown("---")
-        return
-
+    """Render the 'Data Health Check' panel for ``df``."""
     profile = get_data_profile(df)
     st.subheader("Data Health Check")
     col1, col2, col3 = st.columns(3)
@@ -64,4 +57,3 @@ def render_health_check(df):
                     st.metric(col_name, missing_vals[i])
     else:
         st.info("No missing values found!")
-    st.markdown("---")

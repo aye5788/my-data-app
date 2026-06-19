@@ -159,12 +159,18 @@ def render_normalizer(df):
         set_index = st.checkbox("Set datetime as index", value=False, key="normalize_setindex")
         resample_label = st.selectbox(
             "Resample frequency",
-            options=["None", "Daily", "Weekly", "Monthly"],
+            options=["None", "1 min", "5 min", "15 min", "30 min", "1 hour",
+                     "4 hour", "Daily", "Weekly", "Monthly"],
             index=0,
             key="normalize_resample",
             disabled=not set_index,
+            help="Aggregate to a coarser interval (you can only go larger than "
+            "the source interval, never finer).",
         )
-        rule = {"Daily": "D", "Weekly": "W", "Monthly": "ME"}.get(resample_label)
+        rule = {
+            "1 min": "min", "5 min": "5min", "15 min": "15min", "30 min": "30min",
+            "1 hour": "h", "4 hour": "4h", "Daily": "D", "Weekly": "W", "Monthly": "ME",
+        }.get(resample_label)
 
         try:
             result = normalize(

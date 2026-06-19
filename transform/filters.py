@@ -128,13 +128,11 @@ def render_table(filtered_df):
 
 
 def render_export(filtered_df):
-    """Render the CSV export button for the filtered data."""
-    st.markdown("---")
-    st.subheader("Export Workspace")
+    """Render a single CSV download button for the current data."""
     csv_export = filtered_df.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="Download Filtered Data as CSV",
+        label="⬇ Download CSV",
         data=csv_export,
-        file_name="cleansed_data_export.csv",
+        file_name="data_export.csv",
         mime="text/csv",
     )
