@@ -5,6 +5,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from transform.normalize import time_axis
+from analytics.stats import _pick_price_column
 
 OHLC = ["open", "high", "low", "close"]
 
@@ -62,46 +63,75 @@ def _render_price_chart(df, chart_type):
     st.plotly_chart(fig, use_container_width=True)
 
 
+def _xy_defaults(df):
+    """Smart default (x, y) for a generic chart: time on X, a price on Y."""
+    cols = df.columns.tolist()
+    kind, name = time_axis(df)
+    x_options = (["(index)"] if kind == "index" else []) + cols
+    if kind == "index":
+        default_x = "(index)"
+    elif kind == "column" and name in cols:
+        default_x = name
+    else:
+        default_x = cols[0] if cols else None
+    numeric = [c for c in df.select_dtypes("number").columns if c != default_x]
+    default_y = _pick_price_column(df, numeric) or (
+        next((c for c in cols if c != default_x), default_x)
+    )
+    return x_options, default_x, default_y
+
+
 def _render_xy_chart(df, chart_type):
-    all_columns = df.columns.tolist()
-    col_x, col_y = st.columns(2)
-    with col_x:
-        x_axis = st.selectbox("Select X-Axis", options=all_columns, index=0)
-    with col_y:
-        y_axis = st.selectbox(
-            "Select Y-Axis", options=all_columns, index=1 if len(all_columns) > 1 else 0
-        )
-    if not (x_axis and y_axis):
-        st.info("Please select both X and Y axes to generate a chart.")
+    cols = df.columns.tolist()
+    if not cols:
+        st.info("No columns to plot.")
         return
+
+    x_options, default_x, default_y = _xy_defaults(df)
+    with st.expander("Chart options"):
+        x_axis = st.selectbox(
+            "X-Axis", x_options,
+            index=x_options.index(default_x) if default_x in x_options else 0,
+            key="primary_x",
+        )
+        y_axis = st.selectbox(
+            "Y-Axis", cols,
+            index=cols.index(default_y) if default_y in cols else 0,
+            key="primary_y",
+        )
+
+    x_data = df.index if x_axis == "(index)" else df[x_axis]
+    x_label = "date" if x_axis == "(index)" else x_axis
     try:
-        if chart_type == "Line":
-            fig = px.line(df, x=x_axis, y=y_axis, title=f"{y_axis} vs {x_axis} (Line Chart)")
-        elif chart_type == "Bar":
-            fig = px.bar(df, x=x_axis, y=y_axis, title=f"{y_axis} vs {x_axis} (Bar Chart)")
-        elif chart_type == "Scatter":
-            fig = px.scatter(df, x=x_axis, y=y_axis, title=f"{y_axis} vs {x_axis} (Scatter Plot)")
+        builder = {"Line": px.line, "Bar": px.bar, "Scatter": px.scatter}[chart_type]
+        fig = builder(df, x=x_data, y=y_axis, title=f"{y_axis} vs {x_label}")
+        fig.update_xaxes(title_text=x_label)
         st.plotly_chart(fig, use_container_width=True)
     except Exception as chart_e:
         st.error(
             f"Error creating chart: {chart_e}. "
-            "Please check your axis selections and data types."
+            "Open **Chart options** and check your axis selections and data types."
         )
 
 
-def render_visualization(df):
-    """Render the chart builder for ``df``."""
-    st.markdown("---")
-    st.subheader("Visualization Studio")
+def _default_chart_type(df):
+    """Candlestick when this looks like OHLC price data on a time axis, else Line."""
+    kind, _ = time_axis(df)
+    if kind is not None and all(c in df.columns for c in OHLC):
+        return "Candlestick"
+    return "Line"
 
-    if not df.columns.tolist() and not len(df.index):
-        st.info("Upload data to see visualization options.")
+
+def render_visualization(df):
+    """Render the primary chart for ``df`` (auto-defaulted, shown first)."""
+    if df is None or (not df.columns.tolist() and not len(df.index)):
+        st.info("Load data to see a chart.")
         return
 
+    types = ["Line", "Bar", "Scatter", "Candlestick", "OHLC"]
+    default = _default_chart_type(df)
     chart_type = st.selectbox(
-        "Select Chart Type",
-        options=["Line", "Bar", "Scatter", "Candlestick", "OHLC"],
-        index=0,
+        "Chart type", options=types, index=types.index(default), key="primary_chart_type"
     )
 
     if chart_type in ("Candlestick", "OHLC"):

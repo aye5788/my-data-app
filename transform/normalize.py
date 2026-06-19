@@ -119,7 +119,6 @@ def normalize(df, dt_col, mapping, clean_other_numeric=False, set_index=False,
 
 def render_normalizer(df):
     """Render the opt-in normalization expander; return the (possibly) new df."""
-    st.markdown("---")
     with st.expander("Normalize price / time-series data"):
         enabled = st.checkbox(
             "Standardize as time-series / price data",
@@ -128,7 +127,6 @@ def render_normalizer(df):
             help="Parse the date column, rename OHLCV columns, and clean numeric formatting.",
         )
         if not enabled:
-            st.markdown("---")
             return df
 
         cols = list(df.columns)
@@ -144,18 +142,16 @@ def render_normalizer(df):
         mapping = {}
         suggested = suggest_mapping(df)
         opts = ["—"] + cols
-        grid = st.columns(3)
-        for i, canon in enumerate(["open", "high", "low", "close", "adj_close", "volume"]):
-            with grid[i % 3]:
-                default = suggested.get(canon, "—")
-                choice = st.selectbox(
-                    canon,
-                    options=opts,
-                    index=opts.index(default) if default in opts else 0,
-                    key=f"normalize_map_{canon}",
-                )
-                if choice != "—":
-                    mapping[canon] = choice
+        for canon in ["open", "high", "low", "close", "adj_close", "volume"]:
+            default = suggested.get(canon, "—")
+            choice = st.selectbox(
+                canon,
+                options=opts,
+                index=opts.index(default) if default in opts else 0,
+                key=f"normalize_map_{canon}",
+            )
+            if choice != "—":
+                mapping[canon] = choice
 
         clean_other = st.checkbox(
             "Also clean other numeric-looking text columns", value=False, key="normalize_cleanother"
@@ -180,9 +176,7 @@ def render_normalizer(df):
                 resample_rule=rule,
             )
             st.success(f"Normalized: {result.shape[0]} rows × {result.shape[1]} columns.")
-            st.markdown("---")
             return result
         except Exception as e:
             st.error(f"Normalization failed: {e}")
-            st.markdown("---")
             return df
