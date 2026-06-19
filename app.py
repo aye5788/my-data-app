@@ -14,6 +14,7 @@ from transform.filters import render_filters, render_table, render_export
 from quality.profiling import render_health_check
 from analytics.stats import render_returns_panel
 from analytics.indicators import render_indicators
+from analytics.compare import render_multi_symbol
 from viz.charts import render_visualization
 from ai.deepseek import render_ai_workspace
 
@@ -39,6 +40,7 @@ with data_studio_tab:
         render_returns_panel(filtered_df)
         render_health_check(filtered_df)
         render_visualization(filtered_df)
+        render_multi_symbol(df, asset_name)   # compare across symbols (uses full series)
     else:
         st.info("Please upload a file or specify a GCS path to begin analysis.")
 
