@@ -1,4 +1,7 @@
 """Visualization studio (generic charts + price charts)."""
+import math
+
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -9,6 +12,11 @@ from transform.normalize import time_axis
 from analytics.stats import _pick_price_column
 
 OHLC = ["open", "high", "low", "close"]
+
+# Render caps that keep the browser responsive on large files. Plotly draws
+# every point; past these counts it freezes, so we aggregate/downsample first.
+MAX_CANDLES = 2000      # candlesticks are bucket-aggregated to this many bars
+MAX_LINE_POINTS = 8000  # line/scatter are strided to this many points (+ WebGL)
 
 
 def _time_values(df):
@@ -36,6 +44,27 @@ def _sort_by_time(df):
     return df
 
 
+def _aggregate_candles(df, x, max_bars):
+    """Bucket consecutive rows into ``<= max_bars`` groups, aggregating OHLCV
+    correctly (open=first, high=max, low=min, close=last, volume=sum). Returns
+    ``(x_values, frame, downsampled?)``. Keeps real candles at any file size.
+    """
+    n = len(df)
+    work = df.copy()
+    work["__x"] = list(x)
+    if n <= max_bars:
+        return work["__x"], work, False
+
+    groups = np.arange(n) // math.ceil(n / max_bars)
+    agg = {"__x": "first"}
+    for c in df.columns:
+        cl = str(c).lower()
+        agg[c] = ("first" if cl == "open" else "max" if cl == "high"
+                  else "min" if cl == "low" else "sum" if cl == "volume" else "last")
+    out = work.groupby(groups, sort=True).agg(agg)
+    return out["__x"], out, True
+
+
 def _render_price_chart(df, chart_type):
     x, x_label = _time_values(df)
     if x is None:
@@ -48,6 +77,11 @@ def _render_price_chart(df, chart_type):
     has_volume = "volume" in df.columns
     log_scale = st.checkbox("Log price scale", value=False, key="price_log_scale")
 
+    # Keep the browser responsive: aggregate to a drawable number of bars.
+    x, pdf, downsampled = _aggregate_candles(df, x, MAX_CANDLES)
+    if downsampled:
+        st.caption(f"Aggregated {len(df):,} rows into {len(pdf):,} bars for a responsive chart.")
+
     rows = 2 if has_volume else 1
     fig = make_subplots(
         rows=rows, cols=1, shared_xaxes=True, vertical_spacing=0.03,
@@ -56,21 +90,21 @@ def _render_price_chart(df, chart_type):
 
     if chart_type == "Candlestick":
         price_trace = go.Candlestick(
-            x=x, open=df["open"], high=df["high"], low=df["low"], close=df["close"], name="Price",
+            x=x, open=pdf["open"], high=pdf["high"], low=pdf["low"], close=pdf["close"], name="Price",
         )
     else:  # OHLC bars
         price_trace = go.Ohlc(
-            x=x, open=df["open"], high=df["high"], low=df["low"], close=df["close"], name="Price",
+            x=x, open=pdf["open"], high=pdf["high"], low=pdf["low"], close=pdf["close"], name="Price",
         )
     fig.add_trace(price_trace, row=1, col=1)
 
     # Overlay any price-scale indicator columns (sma_/ema_/bb_) as lines.
-    overlay_cols = [c for c in df.columns if str(c).startswith(("sma_", "ema_", "bb_"))]
+    overlay_cols = [c for c in pdf.columns if str(c).startswith(("sma_", "ema_", "bb_"))]
     for c in overlay_cols:
-        fig.add_trace(go.Scatter(x=x, y=df[c], name=c, mode="lines"), row=1, col=1)
+        fig.add_trace(go.Scatter(x=x, y=pdf[c], name=c, mode="lines"), row=1, col=1)
 
     if has_volume:
-        fig.add_trace(go.Bar(x=x, y=df["volume"], name="Volume", marker_color="#888"), row=2, col=1)
+        fig.add_trace(go.Bar(x=x, y=pdf["volume"], name="Volume", marker_color="#888"), row=2, col=1)
         fig.update_yaxes(title_text="Volume", row=2, col=1)
 
     fig.update_yaxes(title_text="Price", type="log" if log_scale else "linear", row=1, col=1)
@@ -116,11 +150,24 @@ def _render_xy_chart(df, chart_type):
             key="primary_y",
         )
 
-    x_data = df.index if x_axis == "(index)" else df[x_axis]
+    # Downsample large series so the browser doesn't freeze rendering points.
+    plot_df = df
+    if len(df) > MAX_LINE_POINTS:
+        step = math.ceil(len(df) / MAX_LINE_POINTS)
+        plot_df = df.iloc[::step]
+        st.caption(f"Showing {len(plot_df):,} of {len(df):,} points (every {step}th) for a responsive chart.")
+
+    x_data = plot_df.index if x_axis == "(index)" else plot_df[x_axis]
     x_label = "date" if x_axis == "(index)" else x_axis
+    title = f"{y_axis} vs {x_label}"
     try:
-        builder = {"Line": px.line, "Bar": px.bar, "Scatter": px.scatter}[chart_type]
-        fig = builder(df, x=x_data, y=y_axis, title=f"{y_axis} vs {x_label}")
+        # WebGL ("webgl") handles far more points than SVG for line/scatter.
+        if chart_type == "Line":
+            fig = px.line(plot_df, x=x_data, y=y_axis, title=title, render_mode="webgl")
+        elif chart_type == "Scatter":
+            fig = px.scatter(plot_df, x=x_data, y=y_axis, title=title, render_mode="webgl")
+        else:  # Bar
+            fig = px.bar(plot_df, x=x_data, y=y_axis, title=title)
         fig.update_xaxes(title_text=x_label)
         st.plotly_chart(fig, use_container_width=True)
     except Exception as chart_e:
