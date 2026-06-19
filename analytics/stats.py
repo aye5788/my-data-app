@@ -84,10 +84,6 @@ def _pct(x):
 
 def render_returns_panel(df):
     """Render the 'Returns & Risk' panel for the active DataFrame."""
-    st.markdown("---")
-    if not st.checkbox("Show Returns & Risk", key="returns_panel"):
-        return
-
     st.subheader("Returns & Risk")
 
     numeric_cols = df.select_dtypes("number").columns.tolist()

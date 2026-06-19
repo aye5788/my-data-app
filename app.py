@@ -57,15 +57,22 @@ with data_studio_tab:
             df = render_indicators(df)         # opt-in technical indicators (full series)
         filtered_df = render_filters(df)        # draws its own sidebar "Filter Workspace"
 
-        # --- Canvas: chart first, then the analysis. ---
+        # --- Canvas: chart first (hero), then analysis organized into tabs. ---
         st.caption(_summary(filtered_df, asset_name))
         render_visualization(filtered_df)       # the hero chart, auto-defaulted
 
-        render_returns_panel(filtered_df)
-        filtered_df = render_table(filtered_df)  # editable; edits flow to export/health
-        render_export(filtered_df)
-        render_health_check(filtered_df)
-        render_multi_symbol(df, asset_name)      # compares across symbols (full series)
+        tab_table, tab_returns, tab_health, tab_compare = st.tabs(
+            ["📋 Table", "📈 Returns & Risk", "🩺 Health", "🔀 Compare"]
+        )
+        with tab_table:
+            edited = render_table(filtered_df)   # editable view
+            render_export(edited)                # download button
+        with tab_returns:
+            render_returns_panel(filtered_df)
+        with tab_health:
+            render_health_check(filtered_df)
+        with tab_compare:
+            render_multi_symbol(df, asset_name)  # compares across symbols (full series)
     else:
         st.info("Pick a data source in the sidebar to begin.")
 
