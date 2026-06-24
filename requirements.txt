@@ -13,3 +13,4 @@ PyMySQL==1.2.0
 duckdb==1.5.4
 duckdb-engine==0.17.0
 requests==2.34.2
+streamlit-lightweight-charts==0.7.20

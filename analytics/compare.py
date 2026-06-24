@@ -115,7 +115,7 @@ def render_multi_symbol(df, asset_name=""):
         fig = px.line(rebased, labels={"value": "Index (=100 at start)", "index": "date",
                                        "variable": "symbol"})
         fig.update_layout(height=450, legend_title_text="symbol")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
         if len(selected) >= 2:
             st.markdown("**Return correlation** (aligned daily returns)")
@@ -125,6 +125,6 @@ def render_multi_symbol(df, asset_name=""):
                 color_continuous_scale="RdBu_r",
             )
             heat.update_layout(height=110 + 60 * len(selected))
-            st.plotly_chart(heat, use_container_width=True)
+            st.plotly_chart(heat, use_container_width=True, config={"displayModeBar": False})
 
         st.markdown("---")

@@ -10,6 +10,16 @@ from plotly.subplots import make_subplots
 
 from transform.normalize import time_axis
 from analytics.stats import _pick_price_column
+from viz.tv_charts import build_price_payload
+
+try:
+    from streamlit_lightweight_charts import renderLightweightCharts
+    _HAS_TV = True
+except Exception:  # component missing -> Plotly fallback
+    _HAS_TV = False
+
+# Hide Plotly's floating modebar (camera/zoom/pan toolbar) everywhere.
+PLOTLY_CONFIG = {"displayModeBar": False}
 
 OHLC = ["open", "high", "low", "close"]
 
@@ -65,7 +75,7 @@ def _aggregate_candles(df, x, max_bars):
     return out["__x"], out, True
 
 
-def _render_price_chart(df, chart_type):
+def _render_price_chart(df, chart_type, log_scale=None):
     x, x_label = _time_values(df)
     if x is None:
         st.info("No datetime axis found — a candlestick/OHLC chart needs a date column or index.")
@@ -75,7 +85,8 @@ def _render_price_chart(df, chart_type):
         return
 
     has_volume = "volume" in df.columns
-    log_scale = st.checkbox("Log price scale", value=False, key="price_log_scale")
+    if log_scale is None:
+        log_scale = st.checkbox("Log price scale", value=False, key="price_log_scale")
 
     # Keep the browser responsive: aggregate to a drawable number of bars.
     x, pdf, downsampled = _aggregate_candles(df, x, MAX_CANDLES)
@@ -110,7 +121,34 @@ def _render_price_chart(df, chart_type):
     fig.update_yaxes(title_text="Price", type="log" if log_scale else "linear", row=1, col=1)
     fig.update_xaxes(title_text=x_label, rangeslider_visible=False, row=rows, col=1)
     fig.update_layout(height=600, title=f"Price ({chart_type})", xaxis_rangeslider_visible=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+
+def _render_price_chart_tv(df, chart_type):
+    """Render the price chart with TradingView Lightweight Charts; fall back to
+    Plotly if the component is missing or errors."""
+    x, _ = _time_values(df)
+    if x is None or not all(c in df.columns for c in OHLC):
+        _render_price_chart(df, chart_type)   # shows the right info message
+        return
+    if not _HAS_TV:
+        _render_price_chart(df, chart_type)
+        return
+
+    log_scale = st.checkbox("Log price scale", value=False, key="price_log_scale")
+    x_agg, pdf, downsampled = _aggregate_candles(df, x, MAX_CANDLES)
+    if downsampled:
+        st.caption(f"Aggregated {len(df):,} rows into {len(pdf):,} bars for a responsive chart.")
+    try:
+        payload = build_price_payload(pdf, x_agg, chart_type)
+        if payload is None:
+            raise ValueError("no OHLC payload")
+        if log_scale:
+            payload[0]["chart"]["rightPriceScale"]["mode"] = 1   # logarithmic
+        renderLightweightCharts(payload, key="tv_price")
+    except Exception as e:
+        st.caption(f"Refined chart unavailable ({e}); showing fallback.")
+        _render_price_chart(df, chart_type, log_scale=log_scale)
 
 
 def _xy_defaults(df):
@@ -169,7 +207,7 @@ def _render_xy_chart(df, chart_type):
         else:  # Bar
             fig = px.bar(plot_df, x=x_data, y=y_axis, title=title)
         fig.update_xaxes(title_text=x_label)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
     except Exception as chart_e:
         st.error(
             f"Error creating chart: {chart_e}. "
@@ -205,6 +243,6 @@ def render_visualization(df):
 
     plot_df = _sort_by_time(df)   # charts read left→right oldest→newest
     if chart_type in ("Candlestick", "OHLC"):
-        _render_price_chart(plot_df, chart_type)
+        _render_price_chart_tv(plot_df, chart_type)
     else:
         _render_xy_chart(plot_df, chart_type)
